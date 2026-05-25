@@ -35,6 +35,8 @@ class TaskBase(BaseModel):
     title: str
     description: str
     skills_required: List[str] = []
+    tags: List[str] = []
+    image_url: Optional[str] = None
     duration_minutes: int
     karma_reward: int
     city: Optional[str] = None

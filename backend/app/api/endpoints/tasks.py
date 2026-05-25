@@ -1,9 +1,10 @@
 import os
+import json
 import shutil
 import uuid
 import math
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
@@ -17,24 +18,60 @@ from app.schemas.schemas import TaskCreate, TaskResponse, TaskAssignmentResponse
 router = APIRouter()
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
+
+def _parse_str_list(raw: Optional[str]) -> List[str]:
+    if not raw:
+        return []
+    raw = raw.strip()
+    if not raw:
+        return []
+    if raw.startswith("["):
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return [str(x).strip() for x in parsed if str(x).strip()]
+        except json.JSONDecodeError:
+            pass
+    return [s.strip() for s in raw.split(",") if s.strip()]
+
+
 @router.post("/", response_model=TaskResponse)
 async def create_task(
-    task_in: TaskCreate, 
-    db: AsyncSession = Depends(get_db), 
-    current_user: User = Depends(deps.get_current_foundation)
+    title: str = Form(...),
+    description: str = Form(...),
+    duration_minutes: int = Form(...),
+    karma_reward: int = Form(...),
+    skills_required: Optional[str] = Form(None),
+    tags: Optional[str] = Form(None),
+    city: Optional[str] = Form(None),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    is_physical: bool = Form(False),
+    image: UploadFile = File(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_foundation),
 ):
+    image_url = None
+    if image and image.filename:
+        filename = f"{uuid.uuid4()}_{image.filename}"
+        file_path = os.path.join("uploads", filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+        image_url = f"http://localhost:8000/uploads/{filename}"
+
     db_task = Task(
         foundation_id=current_user.id,
-        title=task_in.title,
-        description=task_in.description,
-        skills_required=task_in.skills_required,
-        duration_minutes=task_in.duration_minutes,
-        karma_reward=task_in.karma_reward,
-        city=task_in.city,
-        latitude=task_in.latitude,
-        longitude=task_in.longitude,
-        is_physical=task_in.is_physical,
-        expires_at=task_in.expires_at
+        title=title,
+        description=description,
+        skills_required=_parse_str_list(skills_required),
+        tags=_parse_str_list(tags),
+        image_url=image_url,
+        duration_minutes=duration_minutes,
+        karma_reward=karma_reward,
+        city=city,
+        latitude=latitude,
+        longitude=longitude,
+        is_physical=is_physical,
     )
     db.add(db_task)
     await db.commit()
@@ -163,6 +200,8 @@ async def get_my_assignments(
                     "city": task.city,
                     "is_physical": task.is_physical,
                     "skills_required": task.skills_required or [],
+                    "tags": task.tags or [],
+                    "image_url": task.image_url,
                 },
             })
     return response

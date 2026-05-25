@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network.dart';
 
@@ -36,7 +37,7 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
     }
   }
 
-  Future<bool> createTask(Map<String, dynamic> taskData) async {
+  Future<bool> createTask(FormData taskData) async {
     try {
       await apiClient.dio.post('/tasks/', data: taskData);
       await fetchDashboard();

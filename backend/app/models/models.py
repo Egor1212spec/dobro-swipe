@@ -34,6 +34,8 @@ class Task(Base):
     title = Column(String, nullable=False)
     description = Column(Text, nullable=False)
     skills_required = Column(ARRAY(String), default=[])
+    tags = Column(ARRAY(String), default=[])
+    image_url = Column(String, nullable=True)
     duration_minutes = Column(Integer, nullable=False)
     karma_reward = Column(Integer, nullable=False)
     city = Column(String, nullable=True)

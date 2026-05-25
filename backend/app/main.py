@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from app.db.session import engine, Base, AsyncSessionLocal
 from app.models.models import User, Task, TaskAssignment, Achievement, UserAchievement
 from app.models.message import Message
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 
 SEED_ACHIEVEMENTS = [
@@ -25,6 +25,12 @@ SEED_ACHIEVEMENTS = [
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text(
+            "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS tags VARCHAR[] DEFAULT '{}'"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS image_url VARCHAR"
+        ))
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Achievement))

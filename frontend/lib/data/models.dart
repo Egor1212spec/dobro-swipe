@@ -44,6 +44,8 @@ class Task {
   final String? city;
   final bool isPhysical;
   final List<String> skillsRequired;
+  final List<String> tags;
+  final String? imageUrl;
 
   Task({
     required this.id,
@@ -56,6 +58,8 @@ class Task {
     this.city,
     this.isPhysical = false,
     this.skillsRequired = const [],
+    this.tags = const [],
+    this.imageUrl,
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -72,6 +76,8 @@ class Task {
       skillsRequired: json['skills_required'] != null
           ? List<String>.from(json['skills_required'])
           : [],
+      tags: json['tags'] != null ? List<String>.from(json['tags']) : [],
+      imageUrl: json['image_url'],
     );
   }
 }

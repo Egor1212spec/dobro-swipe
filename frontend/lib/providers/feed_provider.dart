@@ -44,25 +44,22 @@ class FeedNotifier extends StateNotifier<FeedState> {
   Future<void> swipeLeft(int taskId) async {
     try {
       await apiClient.dio.post('/tasks/$taskId/swipe_left');
-      state = state.copyWith(tasks: state.tasks.where((t) => t.id != taskId).toList());
-    } catch (e) {
-      await fetchFeed();
+    } catch (_) {
+      // Card already advanced locally; server will re-include the task on the
+      // next fresh fetch if the call failed.
     }
   }
 
   Future<int?> swipeRight(int taskId) async {
     try {
       final response = await apiClient.dio.post('/tasks/$taskId/swipe_right');
-      state = state.copyWith(tasks: state.tasks.where((t) => t.id != taskId).toList());
       return response.data['id'] as int;
     } on DioException catch (e) {
       final msg = e.response?.data?['detail'] ?? 'Не удалось взять задачу';
       state = state.copyWith(swipeError: msg.toString());
-      await fetchFeed();
       return null;
     } catch (e) {
       state = state.copyWith(swipeError: 'Ошибка');
-      await fetchFeed();
       return null;
     }
   }

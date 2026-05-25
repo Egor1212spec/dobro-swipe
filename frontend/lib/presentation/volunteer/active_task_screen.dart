@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,7 +8,6 @@ import 'package:dio/dio.dart';
 import '../../data/models.dart';
 import '../../core/network.dart';
 import '../../core/theme.dart';
-import '../../providers/feed_provider.dart';
 
 class ActiveTaskScreen extends ConsumerStatefulWidget {
   final Task task;
@@ -57,7 +57,6 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> {
         _assignmentId = assignmentId;
         _isAccepting = false;
       });
-      ref.read(feedProvider.notifier).fetchFeed();
       _startChatPolling();
     } on DioException catch (e) {
       setState(() => _isAccepting = false);
@@ -413,8 +412,9 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> {
   // ─── SHARED WIDGETS ───────────────────────────────────────────────────
 
   Widget _buildTaskCard() {
+    final hasImage = widget.task.imageUrl != null && widget.task.imageUrl!.isNotEmpty;
     return Container(
-      padding: const EdgeInsets.all(18),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -423,29 +423,65 @@ class _ActiveTaskScreenState extends ConsumerState<ActiveTaskScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(gradient: AppTheme.primaryGradient, borderRadius: BorderRadius.circular(12)),
-                child: Icon(widget.task.isPhysical ? Icons.place : Icons.laptop_mac, color: Colors.white, size: 20),
+          if (hasImage)
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: CachedNetworkImage(
+                imageUrl: widget.task.imageUrl!,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(color: AppTheme.surfaceLight),
+                errorWidget: (_, __, ___) => Container(color: AppTheme.surfaceLight),
               ),
-              const SizedBox(width: 12),
-              Expanded(child: Text(widget.task.title, style: Theme.of(context).textTheme.titleLarge)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(widget.task.description, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              _chip(Icons.timer_outlined, '${widget.task.durationMinutes} мин'),
-              _chip(Icons.star_rounded, '+${widget.task.karmaReward} кармы'),
-              if (widget.task.city != null) _chip(Icons.location_on_outlined, widget.task.city!),
-              ...widget.task.skillsRequired.map((tag) => _skillChip(tag)),
-            ],
+            ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(gradient: AppTheme.primaryGradient, borderRadius: BorderRadius.circular(12)),
+                      child: Icon(widget.task.isPhysical ? Icons.place : Icons.laptop_mac, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(widget.task.title, style: Theme.of(context).textTheme.titleLarge)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(widget.task.description, style: Theme.of(context).textTheme.bodyMedium),
+                if (widget.task.tags.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: widget.task.tags.map((t) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '#$t',
+                        style: const TextStyle(fontSize: 12, color: AppTheme.accentColor, fontWeight: FontWeight.w600),
+                      ),
+                    )).toList(),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _chip(Icons.timer_outlined, '${widget.task.durationMinutes} мин'),
+                    _chip(Icons.star_rounded, '+${widget.task.karmaReward} кармы'),
+                    if (widget.task.city != null) _chip(Icons.location_on_outlined, widget.task.city!),
+                    ...widget.task.skillsRequired.map((tag) => _skillChip(tag)),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
